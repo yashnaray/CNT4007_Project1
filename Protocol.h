@@ -28,12 +28,10 @@ struct Handshake {
     uint32_t peer_ID{};
 };
 
-// Have message payload: 4-byte piece index
 struct Have {
     uint32_t piece_index;
 };
 
-// Bitfield message payload: variable-length bitfield
 struct Bitfield {
     std::vector<uint8_t> bitfield;
     
@@ -54,11 +52,17 @@ struct Bitfield {
         return (bitfield[byte_index] & (1 << bit_index)) != 0;
     }
 };
-
-// Piece message payload: 4-byte piece index + piece content
 struct Piece {
     uint32_t piece_index;
     std::vector<uint8_t> content;
+};
+
+struct Choke {};
+struct Unchoke {};
+struct Interested {};
+struct NotInterested {};
+struct Request {
+    uint32_t piece_index;
 };
 
 struct Message {
@@ -71,11 +75,14 @@ class Protocol {
 
 };
 
-// Helper functions to create messages
+Message create_choke_message();
+Message create_unchoke_message();
+Message create_interested_message();
+Message create_not_interested_message();
 Message create_have_message(uint32_t piece_index);
 Message create_bitfield_message(const Bitfield& bitfield);
-Message create_piece_message(uint32_t piece_index, const std::vector<uint8_t>& content);
 Message create_request_message(uint32_t piece_index);
+Message create_piece_message(uint32_t piece_index, const std::vector<uint8_t>& content);
 Message create_simple_message(MessageType type);
 
-#endif //CNT4007_PROJECT1_PROTOCOL_H
+#endif 

@@ -4,7 +4,34 @@
 
 #include "Protocol.h"
 
-// Create a Have message
+Message create_choke_message() {
+    Message msg;
+    msg.message_type = CHOKE;
+    msg.message_len = 1;
+    return msg;
+}
+
+Message create_unchoke_message() {
+    Message msg;
+    msg.message_type = UNCHOKE;
+    msg.message_len = 1;
+    return msg;
+}
+
+Message create_interested_message() {
+    Message msg;
+    msg.message_type = INTERESTED;
+    msg.message_len = 1;
+    return msg;
+}
+
+Message create_not_interested_message() {
+    Message msg;
+    msg.message_type = NOT_INTERESTED;
+    msg.message_len = 1;
+    return msg;
+}
+
 Message create_have_message(uint32_t piece_index) {
     Message msg;
     msg.message_type = HAVE;
@@ -22,7 +49,6 @@ Message create_bitfield_message(const Bitfield& bitfield) {
     return msg;
 }
 
-// Create a Piece message
 Message create_piece_message(uint32_t piece_index, const std::vector<uint8_t>& content) {
     Message msg;
     msg.message_type = PIECE;
