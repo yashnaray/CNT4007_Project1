@@ -25,7 +25,9 @@ struct NeighborState {
     size_t download_rate = 0;
     size_t bytes_downloaded = 0;
     
-    NeighborState(uint32_t id, size_t num_pieces) 
+    NeighborState() : peer_id(0), bitfield(0) {}
+    
+    NeighborState(const uint32_t id, const size_t num_pieces)
         : peer_id(id), bitfield(num_pieces) {}
 };
 
@@ -41,7 +43,7 @@ class Peer {
     std::mt19937 rng;
 
 public:
-    Peer(uint32_t id, size_t num_pieces, size_t k_pref, bool has_complete_file)
+    Peer(const uint32_t id, size_t num_pieces, const size_t k_pref, const bool has_complete_file)
         : peer_id(id), my_bitfield(num_pieces), num_pieces(num_pieces), 
           k_preferred(k_pref), rng(std::random_device{}()) {
         if (has_complete_file) {
@@ -55,20 +57,20 @@ public:
         neighbors.emplace(neighbor_id, NeighborState(neighbor_id, num_pieces));
     }
     
-    void update_neighbor_bitfield(uint32_t neighbor_id, const Bitfield& bitfield) {
-        if (auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
+    void update_neighbor_bitfield(const uint32_t neighbor_id, const Bitfield& bitfield) {
+        if (const auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
             it->second.bitfield = bitfield;
         }
     }
     
-    void update_neighbor_piece(uint32_t neighbor_id, uint32_t piece_index) {
-        if (auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
+    void update_neighbor_piece(const uint32_t neighbor_id, const uint32_t piece_index) {
+        if (const auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
             it->second.bitfield.set_piece(piece_index);
         }
     }
     
-    bool is_interested_in(uint32_t neighbor_id) {
-        auto it = neighbors.find(neighbor_id);
+    bool is_interested_in(const uint32_t neighbor_id) {
+        const auto it = neighbors.find(neighbor_id);
         if (it == neighbors.end()) return false;
         
         return std::ranges::any_of(std::views::iota(0u, num_pieces), [&](auto i) {
@@ -126,7 +128,10 @@ public:
                 return it->second.bitfield.has_piece(i) && !my_bitfield.has_piece(i) && !requested_pieces.contains(i);
               });
         
-        std::vector<uint32_t> vec(available.begin(), available.end());
+        std::vector<uint32_t> vec;
+        for (auto piece : available) {
+            vec.push_back(piece);
+        }
         if (vec.empty()) return UINT32_MAX;
         
         uint32_t piece = vec[std::uniform_int_distribution<size_t>(0, vec.size() - 1)(rng)];

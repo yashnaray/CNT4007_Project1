@@ -1,20 +1,32 @@
 [
 {
   "directory": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug",
-  "command": "C:\\PROGRA~1\\JETBRA~1\\CLION2~1.3\\bin\\mingw\\bin\\G__~1.EXE -g -std=gnu++23 -fdiagnostics-color=always -o CMakeFiles\\program.dir\\Config_reader.cpp.obj -c C:\\Users\\yash2\\Desktop\\Classwork\\Assignments\\CNT4007\\CNT4007_Project1\\Config_reader.cpp",
+  "command": "C:\\MinGW\\bin\\g++.exe -g -std=gnu++23 -fdiagnostics-color=always -o CMakeFiles\\program.dir\\Config_reader.cpp.obj -c C:\\Users\\yash2\\Desktop\\Classwork\\Assignments\\CNT4007\\CNT4007_Project1\\Config_reader.cpp",
   "file": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/Config_reader.cpp",
   "output": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug/CMakeFiles/program.dir/Config_reader.cpp.obj"
 },
 {
   "directory": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug",
-  "command": "C:\\PROGRA~1\\JETBRA~1\\CLION2~1.3\\bin\\mingw\\bin\\G__~1.EXE -g -std=gnu++23 -fdiagnostics-color=always -o CMakeFiles\\program.dir\\Protocol.cpp.obj -c C:\\Users\\yash2\\Desktop\\Classwork\\Assignments\\CNT4007\\CNT4007_Project1\\Protocol.cpp",
+  "command": "C:\\MinGW\\bin\\g++.exe -g -std=gnu++23 -fdiagnostics-color=always -o CMakeFiles\\program.dir\\Peer.cpp.obj -c C:\\Users\\yash2\\Desktop\\Classwork\\Assignments\\CNT4007\\CNT4007_Project1\\Peer.cpp",
+  "file": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/Peer.cpp",
+  "output": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug/CMakeFiles/program.dir/Peer.cpp.obj"
+},
+{
+  "directory": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug",
+  "command": "C:\\MinGW\\bin\\g++.exe -g -std=gnu++23 -fdiagnostics-color=always -o CMakeFiles\\program.dir\\Protocol.cpp.obj -c C:\\Users\\yash2\\Desktop\\Classwork\\Assignments\\CNT4007\\CNT4007_Project1\\Protocol.cpp",
   "file": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/Protocol.cpp",
   "output": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug/CMakeFiles/program.dir/Protocol.cpp.obj"
 },
 {
   "directory": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug",
-  "command": "C:\\PROGRA~1\\JETBRA~1\\CLION2~1.3\\bin\\mingw\\bin\\G__~1.EXE -g -std=gnu++23 -fdiagnostics-color=always -o CMakeFiles\\program.dir\\main.cpp.obj -c C:\\Users\\yash2\\Desktop\\Classwork\\Assignments\\CNT4007\\CNT4007_Project1\\main.cpp",
+  "command": "C:\\MinGW\\bin\\g++.exe -g -std=gnu++23 -fdiagnostics-color=always -o CMakeFiles\\program.dir\\main.cpp.obj -c C:\\Users\\yash2\\Desktop\\Classwork\\Assignments\\CNT4007\\CNT4007_Project1\\main.cpp",
   "file": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/main.cpp",
   "output": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug/CMakeFiles/program.dir/main.cpp.obj"
+},
+{
+  "directory": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug",
+  "command": "C:\\MinGW\\bin\\g++.exe -g -std=gnu++23 -fdiagnostics-color=always -o CMakeFiles\\program.dir\\socket_interface.cpp.obj -c C:\\Users\\yash2\\Desktop\\Classwork\\Assignments\\CNT4007\\CNT4007_Project1\\socket_interface.cpp",
+  "file": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/socket_interface.cpp",
+  "output": "C:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/cmake-build-debug/CMakeFiles/program.dir/socket_interface.cpp.obj"
 }
 ]

@@ -4,12 +4,9 @@
 
 #ifndef CNT4007_PROJECT1_PROTOCOL_H
 #define CNT4007_PROJECT1_PROTOCOL_H
-#include <assert.h>
-#include <cstddef>
-#include <cstdint>
+#include <cassert>
 #include <memory>
 #include <vector>
-#include <cstring>
 
 enum MessageType : uint8_t {
     CHOKE,
@@ -35,8 +32,8 @@ struct Have {
 struct Bitfield {
     std::vector<uint8_t> bitfield;
     
-    explicit Bitfield(size_t num_pieces) {
-        size_t num_bytes = (num_pieces + 7) / 8;
+    explicit Bitfield(const size_t num_pieces) {
+        const size_t num_bytes = (num_pieces + 7) / 8;
         bitfield.resize(num_bytes, 0);
     }
     
@@ -47,8 +44,8 @@ struct Bitfield {
     }
     
     bool has_piece(uint32_t piece_index) const {
-        size_t byte_index = piece_index / 8;
-        uint8_t bit_index = 7 - (piece_index % 8);
+        const size_t byte_index = piece_index / 8;
+        const uint8_t bit_index = 7 - (piece_index % 8);
         return (bitfield[byte_index] & (1 << bit_index)) != 0;
     }
 };

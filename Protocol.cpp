@@ -3,6 +3,7 @@
 //
 
 #include "Protocol.h"
+#include <cstring>
 
 Message create_choke_message() {
     Message msg;
@@ -32,7 +33,7 @@ Message create_not_interested_message() {
     return msg;
 }
 
-Message create_have_message(uint32_t piece_index) {
+Message create_have_message(const uint32_t piece_index) {
     Message msg;
     msg.message_type = HAVE;
     msg.message_len = 5;
@@ -49,7 +50,7 @@ Message create_bitfield_message(const Bitfield& bitfield) {
     return msg;
 }
 
-Message create_piece_message(uint32_t piece_index, const std::vector<uint8_t>& content) {
+Message create_piece_message(const uint32_t piece_index, const std::vector<uint8_t>& content) {
     Message msg;
     msg.message_type = PIECE;
     msg.message_len = 1 + 4 + content.size();
@@ -59,7 +60,7 @@ Message create_piece_message(uint32_t piece_index, const std::vector<uint8_t>& c
     return msg;
 }
 
-Message create_request_message(uint32_t piece_index) {
+Message create_request_message(const uint32_t piece_index) {
     Message msg;
     msg.message_type = REQUEST;
     msg.message_len = 5;
@@ -68,7 +69,7 @@ Message create_request_message(uint32_t piece_index) {
     return msg;
 }
 
-Message create_simple_message(MessageType type) {
+Message create_simple_message(const MessageType type) {
     Message msg;
     msg.message_type = type;
     msg.message_len = 1;
