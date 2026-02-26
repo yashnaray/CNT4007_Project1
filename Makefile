@@ -1,8 +1,8 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -O2
+CXXFLAGS = -std=c++20 -Wall -Wextra -O2 -Iinclude
 TARGET = program
-SRCS = $(wildcard *.cpp)
-OBJS = $(SRCS:.cpp=.o)
+SRCS = main.cpp $(wildcard src/*.cpp)
+OBJS = $(patsubst %.cpp,%.o,$(SRCS))
 
 all: $(TARGET)
 
@@ -13,6 +13,6 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $<
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f main.o src/*.o $(TARGET)
 
 .PHONY: all clean

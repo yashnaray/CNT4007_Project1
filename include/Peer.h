@@ -8,7 +8,8 @@
 #include <algorithm>
 #include <ranges>
 #include <concepts>
-
+#include <pthread.h>
+#include "Server.h"
 struct PeerInfo {
     uint32_t peer_id;
     std::string hostname;
@@ -41,6 +42,28 @@ class Peer {
     uint32_t optimistic_unchoke_neighbor = 0;
     std::set<uint32_t> requested_pieces;
     std::mt19937 rng;
+    std::vector<std::thread> connection_threads;
+
+    void handle_connection(Connection& conn) {
+    }
+    
+    void start_server(uint16_t port) {
+        Server server;
+        server.bind_and_listen(port);
+        
+        while (Server.isRunning()) {
+            Connection* conn = server.accept_connection();
+            connection_threads.emplace_back(&Peer::handle_connection, this, conn);
+        }
+    }
+    
+    void connect_to_peers(const std::vector<PeerInfo>& peers) {
+        for (auto& p : peers) {
+            Connection* conn = connect_to_peer(p.hostname, p.port);
+            connection_threads.emplace_back(&Peer::handle_connection, this, conn);
+        }
+    }
+};
 
 public:
     Peer(const uint32_t id, size_t num_pieces, const size_t k_pref, const bool has_complete_file)

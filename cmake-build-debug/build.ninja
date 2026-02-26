@@ -49,9 +49,23 @@ cmake_ninja_workdir = C$:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4
 
 build cmake_object_order_depends_target_program: phony || .
 
+build CMakeFiles/program.dir/Client.cpp.obj: CXX_COMPILER__program_unscanned_Debug C$:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/Client.cpp || cmake_object_order_depends_target_program
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\program.dir\Client.cpp.obj.d
+  FLAGS = -g -std=gnu++23 -fdiagnostics-color=always
+  OBJECT_DIR = CMakeFiles\program.dir
+  OBJECT_FILE_DIR = CMakeFiles\program.dir
+
 build CMakeFiles/program.dir/Config_reader.cpp.obj: CXX_COMPILER__program_unscanned_Debug C$:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/Config_reader.cpp || cmake_object_order_depends_target_program
   CONFIG = Debug
   DEP_FILE = CMakeFiles\program.dir\Config_reader.cpp.obj.d
+  FLAGS = -g -std=gnu++23 -fdiagnostics-color=always
+  OBJECT_DIR = CMakeFiles\program.dir
+  OBJECT_FILE_DIR = CMakeFiles\program.dir
+
+build CMakeFiles/program.dir/Connection.cpp.obj: CXX_COMPILER__program_unscanned_Debug C$:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/Connection.cpp || cmake_object_order_depends_target_program
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\program.dir\Connection.cpp.obj.d
   FLAGS = -g -std=gnu++23 -fdiagnostics-color=always
   OBJECT_DIR = CMakeFiles\program.dir
   OBJECT_FILE_DIR = CMakeFiles\program.dir
@@ -70,16 +84,16 @@ build CMakeFiles/program.dir/Protocol.cpp.obj: CXX_COMPILER__program_unscanned_D
   OBJECT_DIR = CMakeFiles\program.dir
   OBJECT_FILE_DIR = CMakeFiles\program.dir
 
-build CMakeFiles/program.dir/main.cpp.obj: CXX_COMPILER__program_unscanned_Debug C$:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/main.cpp || cmake_object_order_depends_target_program
+build CMakeFiles/program.dir/Server.cpp.obj: CXX_COMPILER__program_unscanned_Debug C$:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/Server.cpp || cmake_object_order_depends_target_program
   CONFIG = Debug
-  DEP_FILE = CMakeFiles\program.dir\main.cpp.obj.d
+  DEP_FILE = CMakeFiles\program.dir\Server.cpp.obj.d
   FLAGS = -g -std=gnu++23 -fdiagnostics-color=always
   OBJECT_DIR = CMakeFiles\program.dir
   OBJECT_FILE_DIR = CMakeFiles\program.dir
 
-build CMakeFiles/program.dir/socket_interface.cpp.obj: CXX_COMPILER__program_unscanned_Debug C$:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/socket_interface.cpp || cmake_object_order_depends_target_program
+build CMakeFiles/program.dir/main.cpp.obj: CXX_COMPILER__program_unscanned_Debug C$:/Users/yash2/Desktop/Classwork/Assignments/CNT4007/CNT4007_Project1/main.cpp || cmake_object_order_depends_target_program
   CONFIG = Debug
-  DEP_FILE = CMakeFiles\program.dir\socket_interface.cpp.obj.d
+  DEP_FILE = CMakeFiles\program.dir\main.cpp.obj.d
   FLAGS = -g -std=gnu++23 -fdiagnostics-color=always
   OBJECT_DIR = CMakeFiles\program.dir
   OBJECT_FILE_DIR = CMakeFiles\program.dir
@@ -92,7 +106,7 @@ build CMakeFiles/program.dir/socket_interface.cpp.obj: CXX_COMPILER__program_uns
 #############################################
 # Link the executable program.exe
 
-build program.exe: CXX_EXECUTABLE_LINKER__program_Debug CMakeFiles/program.dir/Config_reader.cpp.obj CMakeFiles/program.dir/Peer.cpp.obj CMakeFiles/program.dir/Protocol.cpp.obj CMakeFiles/program.dir/main.cpp.obj CMakeFiles/program.dir/socket_interface.cpp.obj
+build program.exe: CXX_EXECUTABLE_LINKER__program_Debug CMakeFiles/program.dir/Client.cpp.obj CMakeFiles/program.dir/Config_reader.cpp.obj CMakeFiles/program.dir/Connection.cpp.obj CMakeFiles/program.dir/Peer.cpp.obj CMakeFiles/program.dir/Protocol.cpp.obj CMakeFiles/program.dir/Server.cpp.obj CMakeFiles/program.dir/main.cpp.obj
   CONFIG = Debug
   FLAGS = -g
   LINK_LIBRARIES = -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
