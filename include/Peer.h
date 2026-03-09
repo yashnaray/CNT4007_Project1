@@ -2,14 +2,20 @@
 #define CNT4007_PROJECT1_PEER_H
 
 #include "Protocol.h"
+#include "Server.h"
+#include "Connection.h"
+#include "Logger.h"
+#include "FileManager.h"
 #include <map>
 #include <set>
 #include <random>
 #include <algorithm>
 #include <ranges>
-#include <concepts>
-#include <pthread.h>
-#include "Server.h"
+#include <thread>
+#include <vector>
+#include <string>
+#include <mutex>
+
 struct PeerInfo {
     uint32_t peer_id;
     std::string hostname;
@@ -27,9 +33,7 @@ struct NeighborState {
     size_t bytes_downloaded = 0;
     
     NeighborState() : peer_id(0), bitfield(0) {}
-    
-    NeighborState(const uint32_t id, const size_t num_pieces)
-        : peer_id(id), bitfield(num_pieces) {}
+    NeighborState(uint32_t id, size_t num_pieces) : peer_id(id), bitfield(num_pieces) {}
 };
 
 class Peer {
@@ -43,76 +47,72 @@ class Peer {
     std::set<uint32_t> requested_pieces;
     std::mt19937 rng;
     std::vector<std::thread> connection_threads;
+    bool running = true;
+    Logger logger;
+    FileManager file_manager;
+    std::mutex neighbors_mutex;
 
-    void handle_connection(Connection& conn) {
-    }
+    void handle_connection(Connection& conn);
+    void start_server(uint16_t port);
+    void connect_to_peers(const std::vector<PeerInfo>& peers);
     
-    void start_server(uint16_t port) {
-        Server server;
-        server.bind_and_listen(port);
-        
-        while (Server.isRunning()) {
-            Connection* conn = server.accept_connection();
-            connection_threads.emplace_back(&Peer::handle_connection, this, conn);
-        }
-    }
-    
-    void connect_to_peers(const std::vector<PeerInfo>& peers) {
-        for (auto& p : peers) {
-            Connection* conn = connect_to_peer(p.hostname, p.port);
-            connection_threads.emplace_back(&Peer::handle_connection, this, conn);
-        }
-    }
-};
-
 public:
-    Peer(const uint32_t id, size_t num_pieces, const size_t k_pref, const bool has_complete_file)
+    Peer(uint32_t id, size_t num_pieces, size_t k_pref, bool has_complete_file,
+         const std::string& filename, size_t file_size, size_t piece_size)
         : peer_id(id), my_bitfield(num_pieces), num_pieces(num_pieces), 
-          k_preferred(k_pref), rng(std::random_device{}()) {
+          k_preferred(k_pref), rng(std::random_device{}()),
+          logger(id), file_manager(filename, file_size, piece_size) {
         if (has_complete_file) {
-            for (auto i : std::views::iota(0u, num_pieces)) {
+            for (auto i : std::views::iota(0u, static_cast<unsigned>(num_pieces))) {
                 my_bitfield.set_piece(i);
             }
+        } else {
+            file_manager.create_empty_file();
         }
     }
     
     void add_neighbor(uint32_t neighbor_id) {
+        std::lock_guard lock(neighbors_mutex);
         neighbors.emplace(neighbor_id, NeighborState(neighbor_id, num_pieces));
     }
     
-    void update_neighbor_bitfield(const uint32_t neighbor_id, const Bitfield& bitfield) {
-        if (const auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
+    void update_neighbor_bitfield(uint32_t neighbor_id, const Bitfield& bitfield) {
+        std::lock_guard lock(neighbors_mutex);
+        if (auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
             it->second.bitfield = bitfield;
         }
     }
     
-    void update_neighbor_piece(const uint32_t neighbor_id, const uint32_t piece_index) {
-        if (const auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
+    void update_neighbor_piece(uint32_t neighbor_id, uint32_t piece_index) {
+        std::lock_guard lock(neighbors_mutex);
+        if (auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
             it->second.bitfield.set_piece(piece_index);
         }
     }
     
-    bool is_interested_in(const uint32_t neighbor_id) {
-        const auto it = neighbors.find(neighbor_id);
+    bool is_interested_in(uint32_t neighbor_id) {
+        std::lock_guard lock(neighbors_mutex);
+        auto it = neighbors.find(neighbor_id);
         if (it == neighbors.end()) return false;
         
-        return std::ranges::any_of(std::views::iota(0u, num_pieces), [&](auto i) {
+        return std::ranges::any_of(std::views::iota(0u, static_cast<unsigned>(num_pieces)), [&](auto i) {
             return it->second.bitfield.has_piece(i) && !my_bitfield.has_piece(i);
         });
     }
     
     void select_preferred_neighbors() {
-        auto interested = neighbors | std::views::filter([](auto& p) { return p.second.am_interested; });
+        std::lock_guard lock(neighbors_mutex);
+        auto interested = neighbors | std::views::filter([](const auto& p) { return p.second.am_interested; });
         std::vector<std::pair<size_t, uint32_t>> rates;
         std::ranges::transform(interested, std::back_inserter(rates), 
-            [](auto& p) { return std::pair{p.second.download_rate, p.first}; });
+            [](const auto& p) { return std::pair{p.second.download_rate, p.first}; });
         
         has_complete_file() ? std::ranges::shuffle(rates, rng) : std::ranges::sort(rates, std::greater{});
         
         std::set<uint32_t> new_preferred;
         std::ranges::transform(rates | std::views::take(k_preferred), 
             std::inserter(new_preferred, new_preferred.end()), 
-            [](auto& p) { return p.second; });
+            [](const auto& p) { return p.second; });
         
         for (auto id : new_preferred) {
             if (!preferred_neighbors.contains(id)) neighbors[id].is_choked = false;
@@ -125,12 +125,14 @@ public:
         }
         
         preferred_neighbors = std::move(new_preferred);
+        logger.log_change_preferred_neighbors(peer_id, preferred_neighbors);
         std::ranges::for_each(neighbors, [](auto& p) { p.second.download_rate = p.second.bytes_downloaded = 0; });
     }
     
     void select_optimistic_unchoke() {
+        std::lock_guard lock(neighbors_mutex);
         auto candidates = neighbors 
-            | std::views::filter([&](auto& p) { 
+            | std::views::filter([&](const auto& p) { 
                 return p.second.is_choked && p.second.am_interested && !preferred_neighbors.contains(p.first); 
               })
             | std::views::keys;
@@ -139,14 +141,16 @@ public:
         if (!vec.empty()) {
             optimistic_unchoke_neighbor = vec[std::uniform_int_distribution<size_t>(0, vec.size() - 1)(rng)];
             neighbors[optimistic_unchoke_neighbor].is_choked = false;
+            logger.log_change_optimistic_unchoke(peer_id, optimistic_unchoke_neighbor);
         }
     }
     
     uint32_t select_piece_to_request(uint32_t neighbor_id) {
+        std::lock_guard lock(neighbors_mutex);
         auto it = neighbors.find(neighbor_id);
         if (it == neighbors.end()) return UINT32_MAX;
         
-        auto available = std::views::iota(0u, num_pieces)
+        auto available = std::views::iota(0u, static_cast<unsigned>(num_pieces))
             | std::views::filter([&](auto i) {
                 return it->second.bitfield.has_piece(i) && !my_bitfield.has_piece(i) && !requested_pieces.contains(i);
               });
@@ -163,22 +167,37 @@ public:
     }
     
     void mark_piece_received(uint32_t piece_index, uint32_t from_peer, size_t piece_size) {
+        std::lock_guard lock(neighbors_mutex);
         my_bitfield.set_piece(piece_index);
         requested_pieces.erase(piece_index);
         if (auto it = neighbors.find(from_peer); it != neighbors.end()) {
             it->second.bytes_downloaded += piece_size;
             it->second.download_rate += piece_size;
         }
+        
+        size_t count = 0;
+        for (auto i : std::views::iota(0u, static_cast<unsigned>(num_pieces))) {
+            if (my_bitfield.has_piece(i)) count++;
+        }
+        logger.log_downloading_piece(peer_id, piece_index, from_peer, count);
+        
+        if (has_complete_file()) {
+            logger.log_completion(peer_id);
+        }
     }
     
     bool has_complete_file() const {
-        return std::ranges::all_of(std::views::iota(0u, num_pieces), 
+        return std::ranges::all_of(std::views::iota(0u, static_cast<unsigned>(num_pieces)), 
             [&](auto i) { return my_bitfield.has_piece(i); });
     }
     
     const Bitfield& get_bitfield() const { return my_bitfield; }
     const std::set<uint32_t>& get_preferred_neighbors() const { return preferred_neighbors; }
     uint32_t get_optimistic_unchoke() const { return optimistic_unchoke_neighbor; }
+    uint32_t get_peer_id() const { return peer_id; }
+    Logger& get_logger() { return logger; }
+    FileManager& get_file_manager() { return file_manager; }
+    void stop() { running = false; }
 };
 
-#endif 
+#endif

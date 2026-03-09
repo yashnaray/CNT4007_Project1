@@ -1,19 +1,21 @@
-//
-// Created by yash2 on 2/26/2026.
-//
-#include "Connection.h"
 #ifndef PROGRAM_SERVER_H
 #define PROGRAM_SERVER_H
 
+#include "Connection.h"
+#include <memory>
 
 class Server {
-   int listen_fd;
+    int listen_fd = -1;
+    bool is_running = false;
     
 public:
+    Server() = default;
+    ~Server() { close(); }
+    
     bool bind_and_listen(uint16_t port, int backlog = 10);
-    Connection* accept_connection();
+    std::unique_ptr<Connection> accept_connection();
     void close();
+    bool is_listening() const { return is_running; }
 };
 
-
-#endif //PROGRAM_SERVER_H
+#endif
