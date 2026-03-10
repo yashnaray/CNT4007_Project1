@@ -53,10 +53,10 @@ class Peer {
     std::mutex neighbors_mutex;
 
     void handle_connection(Connection& conn);
-    void start_server(uint16_t port);
-    void connect_to_peers(const std::vector<PeerInfo>& peers);
     
 public:
+    void start_server(uint16_t port);
+    void connect_to_peers(const std::vector<PeerInfo>& peers);
     Peer(uint32_t id, size_t num_pieces, size_t k_pref, bool has_complete_file,
          const std::string& filename, size_t file_size, size_t piece_size)
         : peer_id(id), my_bitfield(num_pieces), num_pieces(num_pieces), 
@@ -141,7 +141,7 @@ public:
         if (!vec.empty()) {
             optimistic_unchoke_neighbor = vec[std::uniform_int_distribution<size_t>(0, vec.size() - 1)(rng)];
             neighbors[optimistic_unchoke_neighbor].is_choked = false;
-            logger.log_change_optimistic_unchoke(peer_id, optimistic_unchoke_neighbor);
+            logger.log_change_optimistically_unchoked_neighbor(peer_id, optimistic_unchoke_neighbor);
         }
     }
     
