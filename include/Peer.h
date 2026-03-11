@@ -42,6 +42,8 @@ class Peer {
     size_t num_pieces;
     size_t k_preferred;
     std::map<uint32_t, NeighborState> neighbors;
+    std::map<uint32_t, Connection*> connections;
+    std::vector<std::unique_ptr<Connection>> owned_connections;
     std::set<uint32_t> preferred_neighbors;
     uint32_t optimistic_unchoke_neighbor = 0;
     std::set<uint32_t> requested_pieces;
@@ -76,6 +78,11 @@ public:
         neighbors.emplace(neighbor_id, NeighborState(neighbor_id, num_pieces));
     }
     
+    void register_connection(uint32_t neighbor_id, Connection* conn) {
+        std::lock_guard lock(neighbors_mutex);
+        connections[neighbor_id] = conn;
+    }
+    
     void update_neighbor_bitfield(uint32_t neighbor_id, const Bitfield& bitfield) {
         std::lock_guard lock(neighbors_mutex);
         if (auto it = neighbors.find(neighbor_id); it != neighbors.end()) {
@@ -102,7 +109,7 @@ public:
     
     void select_preferred_neighbors() {
         std::lock_guard lock(neighbors_mutex);
-        auto interested = neighbors | std::views::filter([](const auto& p) { return p.second.am_interested; });
+        auto interested = neighbors | std::views::filter([](const auto& p) { return p.second.is_interested; });
         std::vector<std::pair<size_t, uint32_t>> rates;
         std::ranges::transform(interested, std::back_inserter(rates), 
             [](const auto& p) { return std::pair{p.second.download_rate, p.first}; });
@@ -115,12 +122,20 @@ public:
             [](const auto& p) { return p.second; });
         
         for (auto id : new_preferred) {
-            if (!preferred_neighbors.contains(id)) neighbors[id].is_choked = false;
+            if (!preferred_neighbors.contains(id)) {
+                neighbors[id].is_choked = false;
+                if (connections.contains(id)) {
+                    connections[id]->send_message(create_unchoke_message());
+                }
+            }
         }
         
         for (auto id : preferred_neighbors) {
             if (!new_preferred.contains(id) && id != optimistic_unchoke_neighbor) {
                 neighbors[id].is_choked = true;
+                if (connections.contains(id)) {
+                    connections[id]->send_message(create_choke_message());
+                }
             }
         }
         
@@ -133,14 +148,27 @@ public:
         std::lock_guard lock(neighbors_mutex);
         auto candidates = neighbors 
             | std::views::filter([&](const auto& p) { 
-                return p.second.is_choked && p.second.am_interested && !preferred_neighbors.contains(p.first); 
+                return p.second.is_choked && p.second.is_interested && !preferred_neighbors.contains(p.first); 
               })
             | std::views::keys;
         
         std::vector<uint32_t> vec(candidates.begin(), candidates.end());
         if (!vec.empty()) {
+            // Choke the previous optimistic neighbor if it exists and is not in preferred
+            if (optimistic_unchoke_neighbor != 0 && 
+                !preferred_neighbors.contains(optimistic_unchoke_neighbor) &&
+                neighbors.contains(optimistic_unchoke_neighbor)) {
+                neighbors[optimistic_unchoke_neighbor].is_choked = true;
+                if (connections.contains(optimistic_unchoke_neighbor)) {
+                    connections[optimistic_unchoke_neighbor]->send_message(create_choke_message());
+                }
+            }
+            
             optimistic_unchoke_neighbor = vec[std::uniform_int_distribution<size_t>(0, vec.size() - 1)(rng)];
             neighbors[optimistic_unchoke_neighbor].is_choked = false;
+            if (connections.contains(optimistic_unchoke_neighbor)) {
+                connections[optimistic_unchoke_neighbor]->send_message(create_unchoke_message());
+            }
             logger.log_change_optimistically_unchoked_neighbor(peer_id, optimistic_unchoke_neighbor);
         }
     }
@@ -180,6 +208,14 @@ public:
             if (my_bitfield.has_piece(i)) count++;
         }
         logger.log_downloading_piece(peer_id, piece_index, from_peer, count);
+        
+        // Broadcast HAVE message to all neighbors
+        Message have_msg = create_have_message(piece_index);
+        for (auto& [neighbor_id, conn] : connections) {
+            if (neighbor_id != from_peer) {
+                conn->send_message(have_msg);
+            }
+        }
         
         if (has_complete_file()) {
             logger.log_completion(peer_id);

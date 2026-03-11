@@ -1,5 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -O2 -Iinclude
+LDFLAGS = -pthread
 TARGET = peerProcess
 SRCS = main.cpp $(wildcard src/*.cpp)
 OBJS = $(patsubst %.cpp,%.o,$(SRCS))
@@ -7,9 +8,8 @@ OBJS = $(patsubst %.cpp,%.o,$(SRCS))
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-# Add '-o $@' to the end of this line so it outputs to src/
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 

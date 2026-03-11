@@ -57,7 +57,25 @@ int main(int argc, char* argv[]) {
 
     peer.connect_to_peers(previous_peers);
 
+    std::thread unchoke_thread([&peer, &common_cfg]() {
+        peer.select_preferred_neighbors();  // Initial selection
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(common_cfg.unchoking_interval));
+            peer.select_preferred_neighbors();
+        }
+    });
+
+    std::thread optimistic_thread([&peer, &common_cfg]() {
+        std::this_thread::sleep_for(std::chrono::seconds(common_cfg.optimistic_unchoking_interval));
+        while (true) {
+            peer.select_optimistic_unchoke();
+            std::this_thread::sleep_for(std::chrono::seconds(common_cfg.optimistic_unchoking_interval));
+        }
+    });
+
     server_thread.join();
+    unchoke_thread.join();
+    optimistic_thread.join();
 
     return 0;
 }

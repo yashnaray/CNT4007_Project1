@@ -38,7 +38,8 @@ Message create_have_message(const uint32_t piece_index) {
     msg.message_type = HAVE;
     msg.message_len = 5;
     msg.payload.resize(4);
-    std::memcpy(msg.payload.data(), &piece_index, 4);
+    uint32_t piece_net = htonl(piece_index);
+    std::memcpy(msg.payload.data(), &piece_net, 4);
     return msg;
 }
 
@@ -55,7 +56,8 @@ Message create_piece_message(const uint32_t piece_index, const std::vector<uint8
     msg.message_type = PIECE;
     msg.message_len = 1 + 4 + content.size();
     msg.payload.resize(4 + content.size());
-    std::memcpy(msg.payload.data(), &piece_index, 4);
+    uint32_t piece_net = htonl(piece_index);
+    std::memcpy(msg.payload.data(), &piece_net, 4);
     std::memcpy(msg.payload.data() + 4, content.data(), content.size());
     return msg;
 }
@@ -65,7 +67,8 @@ Message create_request_message(const uint32_t piece_index) {
     msg.message_type = REQUEST;
     msg.message_len = 5;
     msg.payload.resize(4);
-    std::memcpy(msg.payload.data(), &piece_index, 4);
+    uint32_t piece_net = htonl(piece_index);
+    std::memcpy(msg.payload.data(), &piece_net, 4);
     return msg;
 }
 

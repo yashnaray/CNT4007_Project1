@@ -5,7 +5,6 @@
 #include <cstring>
 
 void Peer::handle_connection(Connection& conn) {
-    std::unique_ptr<Connection> auto_cleanup(&conn);
     Handshake my_hs;
     my_hs.peer_ID = peer_id;
     if (!conn.send_handshake(my_hs)) return;
@@ -15,6 +14,7 @@ void Peer::handle_connection(Connection& conn) {
     
     conn.set_peer_id(hs.peer_ID);
     add_neighbor(hs.peer_ID);
+    register_connection(hs.peer_ID, &conn);
     logger.log_tcp_connection(peer_id, hs.peer_ID);
     
     conn.send_message(create_bitfield_message(my_bitfield));
@@ -143,7 +143,11 @@ void Peer::start_server(uint16_t port) {
     while (running) {
         auto conn = server.accept_connection();
         if (conn) {
-            Connection* raw_conn = conn.release();
+            Connection* raw_conn = conn.get();
+            {
+                std::lock_guard lock(neighbors_mutex);
+                owned_connections.push_back(std::move(conn));
+            }
             connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn));
         }
     }
@@ -153,7 +157,11 @@ void Peer::connect_to_peers(const std::vector<PeerInfo>& peers) {
     for (const auto& p : peers) {
         auto conn = Client::connect_to_peer(p.hostname, p.port);
         if (conn) {
-            Connection* raw_conn = conn.release();
+            Connection* raw_conn = conn.get();
+            {
+                std::lock_guard lock(neighbors_mutex);
+                owned_connections.push_back(std::move(conn));
+            }
             connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn));
         }
     }
