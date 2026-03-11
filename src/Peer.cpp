@@ -47,8 +47,10 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
                 }
                 logger.log_unchoking(peer_id, conn.get_peer_id());
                 auto piece = select_piece_to_request(conn.get_peer_id());
+                std::cout << "Peer " << peer_id << ": After unchoke, selected piece " << piece << " to request from " << conn.get_peer_id() << std::endl;
                 if (piece != UINT32_MAX) {
                     conn.send_message(create_request_message(piece));
+                    std::cout << "Peer " << peer_id << ": Sent REQUEST for piece " << piece << std::endl;
                 }
                 break;
             }
@@ -90,9 +92,11 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
                 Bitfield bf(num_pieces);
                 bf.bitfield = msg.payload;
                 update_neighbor_bitfield(conn.get_peer_id(), bf);
+                std::cout << "Peer " << peer_id << ": Received BITFIELD from " << conn.get_peer_id() << std::endl;
                 
                 if (is_interested_in(conn.get_peer_id())) {
                     conn.send_message(create_interested_message());
+                    std::cout << "Peer " << peer_id << ": Sent INTERESTED to " << conn.get_peer_id() << std::endl;
                 }
                 break;
             }
@@ -143,11 +147,16 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
 
 void Peer::start_server(uint16_t port) {
     Server server;
-    if (!server.bind_and_listen(port)) return;
+    if (!server.bind_and_listen(port)) {
+        std::cerr << "Peer " << peer_id << ": Failed to bind to port " << port << std::endl;
+        return;
+    }
+    std::cout << "Peer " << peer_id << ": Server listening on port " << port << std::endl;
     
     while (running) {
         auto conn = server.accept_connection();
         if (conn) {
+            std::cout << "Peer " << peer_id << ": Accepted connection" << std::endl;
             Connection* raw_conn = conn.get();
             {
                 std::lock_guard lock(neighbors_mutex);
@@ -160,14 +169,19 @@ void Peer::start_server(uint16_t port) {
 
 void Peer::connect_to_peers(const std::vector<PeerInfo>& peers) {
     for (const auto& p : peers) {
+        std::cout << "Peer " << peer_id << ": Attempting to connect to peer " << p.peer_id 
+                  << " at " << p.hostname << ":" << p.port << std::endl;
         auto conn = Client::connect_to_peer(p.hostname, p.port);
         if (conn) {
+            std::cout << "Peer " << peer_id << ": Successfully connected to peer " << p.peer_id << std::endl;
             Connection* raw_conn = conn.get();
             {
                 std::lock_guard lock(neighbors_mutex);
                 owned_connections.push_back(std::move(conn));
             }
             connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn), true);
+        } else {
+            std::cerr << "Peer " << peer_id << ": Failed to connect to peer " << p.peer_id << std::endl;
         }
     }
 }
