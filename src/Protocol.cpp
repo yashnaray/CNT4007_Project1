@@ -5,6 +5,12 @@
 #include "Protocol.h"
 #include <cstring>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
+
 Message create_choke_message() {
     Message msg;
     msg.message_type = CHOKE;
