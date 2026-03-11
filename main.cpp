@@ -57,6 +57,9 @@ int main(int argc, char* argv[]) {
 
     peer.connect_to_peers(previous_peers);
 
+    // Give connections time to establish and exchange handshakes/bitfields
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
     std::thread unchoke_thread([&peer, &common_cfg]() {
         peer.select_preferred_neighbors();  // Initial selection
         while (true) {

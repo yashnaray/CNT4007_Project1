@@ -4,7 +4,7 @@
 #include <memory>
 #include <cstring>
 
-void Peer::handle_connection(Connection& conn) {
+void Peer::handle_connection(Connection& conn, bool is_client) {
     Handshake my_hs;
     my_hs.peer_ID = peer_id;
     if (!conn.send_handshake(my_hs)) return;
@@ -15,7 +15,12 @@ void Peer::handle_connection(Connection& conn) {
     conn.set_peer_id(hs.peer_ID);
     add_neighbor(hs.peer_ID);
     register_connection(hs.peer_ID, &conn);
-    logger.log_tcp_connection(peer_id, hs.peer_ID);
+    
+    if (is_client) {
+        logger.log_tcp_connection_to(peer_id, hs.peer_ID);
+    } else {
+        logger.log_tcp_connection_from(peer_id, hs.peer_ID);
+    }
     
     conn.send_message(create_bitfield_message(my_bitfield));
     
@@ -148,7 +153,7 @@ void Peer::start_server(uint16_t port) {
                 std::lock_guard lock(neighbors_mutex);
                 owned_connections.push_back(std::move(conn));
             }
-            connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn));
+            connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn), false);
         }
     }
 }
@@ -162,7 +167,7 @@ void Peer::connect_to_peers(const std::vector<PeerInfo>& peers) {
                 std::lock_guard lock(neighbors_mutex);
                 owned_connections.push_back(std::move(conn));
             }
-            connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn));
+            connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn), true);
         }
     }
 }

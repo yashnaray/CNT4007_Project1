@@ -54,7 +54,7 @@ class Peer {
     FileManager file_manager;
     std::mutex neighbors_mutex;
 
-    void handle_connection(Connection& conn);
+    void handle_connection(Connection& conn, bool is_client);
     
 public:
     void start_server(uint16_t port);
@@ -63,7 +63,7 @@ public:
          const std::string& filename, size_t file_size, size_t piece_size)
         : peer_id(id), my_bitfield(num_pieces), num_pieces(num_pieces), 
           k_preferred(k_pref), rng(std::random_device{}()),
-          logger(id), file_manager(filename, file_size, piece_size) {
+          logger(id), file_manager("peer_" + std::to_string(id) + "/" + filename, file_size, piece_size) {
         if (has_complete_file) {
             for (auto i : std::views::iota(0u, static_cast<unsigned>(num_pieces))) {
                 my_bitfield.set_piece(i);
