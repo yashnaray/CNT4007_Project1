@@ -3,6 +3,9 @@
 
 #ifdef _WIN32
 extern void init_winsock();
+#include <ws2tcpip.h>
+#else
+#include <netdb.h>
 #endif
 
 std::unique_ptr<Connection> Client::connect_to_peer(const std::string& hostname, uint16_t port) {
@@ -17,14 +20,20 @@ std::unique_ptr<Connection> Client::connect_to_peer(const std::string& hostname,
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     
-#ifdef _WIN32
-    addr.sin_addr.s_addr = inet_addr(hostname.c_str());
-#else
+    // Try to parse as IP address first
     if (inet_pton(AF_INET, hostname.c_str(), &addr.sin_addr) <= 0) {
-        ::close(sock_fd);
-        return nullptr;
-    }
+        // If that fails, resolve as hostname
+        struct hostent* host = gethostbyname(hostname.c_str());
+        if (host == nullptr || host->h_addr_list[0] == nullptr) {
+#ifdef _WIN32
+            closesocket(sock_fd);
+#else
+            ::close(sock_fd);
 #endif
+            return nullptr;
+        }
+        memcpy(&addr.sin_addr, host->h_addr_list[0], host->h_length);
+    }
     
     if (connect(sock_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
 #ifdef _WIN32
