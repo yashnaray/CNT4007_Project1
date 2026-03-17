@@ -42,19 +42,19 @@ class Peer {
     size_t num_pieces;
     size_t k_preferred;
     std::map<uint32_t, NeighborState> neighbors;
-    std::map<uint32_t, Connection*> connections;
-    std::vector<std::unique_ptr<Connection>> owned_connections;
+    std::map<uint32_t, std::shared_ptr<Connection>> connections;
+    std::vector<std::shared_ptr<Connection>> owned_connections;
     std::set<uint32_t> preferred_neighbors;
     uint32_t optimistic_unchoke_neighbor = 0;
     std::set<uint32_t> requested_pieces;
     std::mt19937 rng;
-    std::vector<std::thread> connection_threads;
+    std::vector<std::jthread> connection_threads;
     bool running = true;
     Logger logger;
     FileManager file_manager;
     std::mutex neighbors_mutex;
 
-    void handle_connection(Connection& conn, bool is_client);
+    void handle_connection(std::shared_ptr<Connection> conn, bool is_client);
     
 public:
     void start_server(uint16_t port);
@@ -78,7 +78,7 @@ public:
         neighbors.emplace(neighbor_id, NeighborState(neighbor_id, num_pieces));
     }
     
-    void register_connection(uint32_t neighbor_id, Connection* conn) {
+    void register_connection(uint32_t neighbor_id, std::shared_ptr<Connection> conn) {
         std::lock_guard lock(neighbors_mutex);
         connections[neighbor_id] = conn;
     }
@@ -154,7 +154,6 @@ public:
         
         std::vector<uint32_t> vec(candidates.begin(), candidates.end());
         if (!vec.empty()) {
-            // Choke the previous optimistic neighbor if it exists and is not in preferred
             if (optimistic_unchoke_neighbor != 0 && 
                 !preferred_neighbors.contains(optimistic_unchoke_neighbor) &&
                 neighbors.contains(optimistic_unchoke_neighbor)) {
@@ -209,7 +208,6 @@ public:
         }
         logger.log_downloading_piece(peer_id, piece_index, from_peer, count);
         
-        // Broadcast HAVE message to all neighbors
         Message have_msg = create_have_message(piece_index);
         for (auto& [neighbor_id, conn] : connections) {
             if (neighbor_id != from_peer) {

@@ -39,14 +39,14 @@ bool Server::bind_and_listen(uint16_t port, int backlog) {
     return true;
 }
 
-std::unique_ptr<Connection> Server::accept_connection() {
+std::shared_ptr<Connection> Server::accept_connection() {
     sockaddr_in client_addr{};
     socklen_t addr_len = sizeof(client_addr);
-    
+
     int client_fd = accept(listen_fd, reinterpret_cast<sockaddr*>(&client_addr), &addr_len);
     if (client_fd < 0) return nullptr;
-    
-    return std::make_unique<Connection>(client_fd);
+
+    return std::make_shared<Connection>(client_fd);
 }
 
 void Server::close() {

@@ -8,7 +8,7 @@ extern void init_winsock();
 #include <netdb.h>
 #endif
 
-std::unique_ptr<Connection> Client::connect_to_peer(const std::string& hostname, uint16_t port) {
+std::shared_ptr<Connection> Client::connect_to_peer(const std::string& hostname, uint16_t port) {
 #ifdef _WIN32
     init_winsock();
 #endif
@@ -20,9 +20,7 @@ std::unique_ptr<Connection> Client::connect_to_peer(const std::string& hostname,
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     
-    // Try to parse as IP address first
     if (inet_pton(AF_INET, hostname.c_str(), &addr.sin_addr) <= 0) {
-        // If that fails, resolve as hostname
         struct hostent* host = gethostbyname(hostname.c_str());
         if (host == nullptr || host->h_addr_list[0] == nullptr) {
 #ifdef _WIN32
@@ -44,5 +42,5 @@ std::unique_ptr<Connection> Client::connect_to_peer(const std::string& hostname,
         return nullptr;
     }
     
-    return std::make_unique<Connection>(sock_fd);
+    return std::make_shared<Connection>(sock_fd);
 }

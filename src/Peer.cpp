@@ -4,17 +4,17 @@
 #include <memory>
 #include <cstring>
 
-void Peer::handle_connection(Connection& conn, bool is_client) {
+void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
     Handshake my_hs;
     my_hs.peer_ID = peer_id;
-    if (!conn.send_handshake(my_hs)) return;
+    if (!conn->send_handshake(my_hs)) return;
 
     Handshake hs;
-    if (!conn.recv_handshake(hs)) return;
+    if (!conn->recv_handshake(hs)) return;
     
-    conn.set_peer_id(hs.peer_ID);
+    conn->set_peer_id(hs.peer_ID);
     add_neighbor(hs.peer_ID);
-    register_connection(hs.peer_ID, &conn);
+    register_connection(hs.peer_ID, conn);
     
     if (is_client) {
         logger.log_tcp_connection_to(peer_id, hs.peer_ID);
@@ -22,34 +22,34 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
         logger.log_tcp_connection_from(peer_id, hs.peer_ID);
     }
     
-    conn.send_message(create_bitfield_message(my_bitfield));
+    conn->send_message(create_bitfield_message(my_bitfield));
     
     while (running) {
         Message msg;
-        if (!conn.recv_message(msg)) break;
+        if (!conn->recv_message(msg)) break;
         
         switch (msg.message_type) {
             case CHOKE: {
                 std::lock_guard lock(neighbors_mutex);
-                if (auto it = neighbors.find(conn.get_peer_id()); it != neighbors.end()) {
+                if (auto it = neighbors.find(conn->get_peer_id()); it != neighbors.end()) {
                     it->second.is_choked = true;
                 }
-                logger.log_choking(peer_id, conn.get_peer_id());
+                logger.log_choking(peer_id, conn->get_peer_id());
                 break;
             }
                 
             case UNCHOKE: {
                 {
                     std::lock_guard lock(neighbors_mutex);
-                    if (auto it = neighbors.find(conn.get_peer_id()); it != neighbors.end()) {
+                    if (auto it = neighbors.find(conn->get_peer_id()); it != neighbors.end()) {
                         it->second.is_choked = false;
                     }
                 }
-                logger.log_unchoking(peer_id, conn.get_peer_id());
-                auto piece = select_piece_to_request(conn.get_peer_id());
-                std::cout << "Peer " << peer_id << ": After unchoke, selected piece " << piece << " to request from " << conn.get_peer_id() << std::endl;
+                logger.log_unchoking(peer_id, conn->get_peer_id());
+                auto piece = select_piece_to_request(conn->get_peer_id());
+                std::cout << "Peer " << peer_id << ": After unchoke, selected piece " << piece << " to request from " << conn->get_peer_id() << std::endl;
                 if (piece != UINT32_MAX) {
-                    conn.send_message(create_request_message(piece));
+                    conn->send_message(create_request_message(piece));
                     std::cout << "Peer " << peer_id << ": Sent REQUEST for piece " << piece << std::endl;
                 }
                 break;
@@ -57,19 +57,19 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
                 
             case INTERESTED: {
                 std::lock_guard lock(neighbors_mutex);
-                if (auto it = neighbors.find(conn.get_peer_id()); it != neighbors.end()) {
+                if (auto it = neighbors.find(conn->get_peer_id()); it != neighbors.end()) {
                     it->second.is_interested = true;
                 }
-                logger.log_received_interested(peer_id, conn.get_peer_id());
+                logger.log_received_interested(peer_id, conn->get_peer_id());
                 break;
             }
                 
             case NOT_INTERESTED: {
                 std::lock_guard lock(neighbors_mutex);
-                if (auto it = neighbors.find(conn.get_peer_id()); it != neighbors.end()) {
+                if (auto it = neighbors.find(conn->get_peer_id()); it != neighbors.end()) {
                     it->second.is_interested = false;
                 }
-                logger.log_received_not_interested(peer_id, conn.get_peer_id());
+                logger.log_received_not_interested(peer_id, conn->get_peer_id());
                 break;
             }
                 
@@ -77,13 +77,13 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
                 uint32_t piece_idx;
                 std::memcpy(&piece_idx, msg.payload.data(), 4);
                 piece_idx = ntohl(piece_idx);
-                update_neighbor_piece(conn.get_peer_id(), piece_idx);
-                logger.log_received_have(peer_id, conn.get_peer_id(), piece_idx);
+                update_neighbor_piece(conn->get_peer_id(), piece_idx);
+                logger.log_received_have(peer_id, conn->get_peer_id(), piece_idx);
                 
-                if (is_interested_in(conn.get_peer_id())) {
-                    conn.send_message(create_interested_message());
+                if (is_interested_in(conn->get_peer_id())) {
+                    conn->send_message(create_interested_message());
                 } else {
-                    conn.send_message(create_not_interested_message());
+                    conn->send_message(create_not_interested_message());
                 }
                 break;
             }
@@ -91,12 +91,12 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
             case BITFIELD: {
                 Bitfield bf(num_pieces);
                 bf.bitfield = msg.payload;
-                update_neighbor_bitfield(conn.get_peer_id(), bf);
-                std::cout << "Peer " << peer_id << ": Received BITFIELD from " << conn.get_peer_id() << std::endl;
+                update_neighbor_bitfield(conn->get_peer_id(), bf);
+                std::cout << "Peer " << peer_id << ": Received BITFIELD from " << conn->get_peer_id() << std::endl;
                 
-                if (is_interested_in(conn.get_peer_id())) {
-                    conn.send_message(create_interested_message());
-                    std::cout << "Peer " << peer_id << ": Sent INTERESTED to " << conn.get_peer_id() << std::endl;
+                if (is_interested_in(conn->get_peer_id())) {
+                    conn->send_message(create_interested_message());
+                    std::cout << "Peer " << peer_id << ": Sent INTERESTED to " << conn->get_peer_id() << std::endl;
                 }
                 break;
             }
@@ -109,7 +109,7 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
                 bool should_send = false;
                 {
                     std::lock_guard lock(neighbors_mutex);
-                    if (auto it = neighbors.find(conn.get_peer_id()); 
+                    if (auto it = neighbors.find(conn->get_peer_id()); 
                         it != neighbors.end() && !it->second.is_choked && my_bitfield.has_piece(piece_idx)) {
                         should_send = true;
                     }
@@ -118,7 +118,7 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
                 if (should_send) {
                     std::vector<uint8_t> piece_data;
                     if (file_manager.read_piece(piece_idx, piece_data)) {
-                        conn.send_message(create_piece_message(piece_idx, piece_data));
+                        conn->send_message(create_piece_message(piece_idx, piece_data));
                     }
                 }
                 break;
@@ -131,12 +131,12 @@ void Peer::handle_connection(Connection& conn, bool is_client) {
                 std::vector<uint8_t> content(msg.payload.begin() + 4, msg.payload.end());
                 
                 file_manager.write_piece(piece_idx, content);
-                mark_piece_received(piece_idx, conn.get_peer_id(), content.size());
+                mark_piece_received(piece_idx, conn->get_peer_id(), content.size());
                 
                 if (!has_complete_file()) {
-                    auto next_piece = select_piece_to_request(conn.get_peer_id());
+                    auto next_piece = select_piece_to_request(conn->get_peer_id());
                     if (next_piece != UINT32_MAX) {
-                        conn.send_message(create_request_message(next_piece));
+                        conn->send_message(create_request_message(next_piece));
                     }
                 }
                 break;
@@ -157,12 +157,11 @@ void Peer::start_server(uint16_t port) {
         auto conn = server.accept_connection();
         if (conn) {
             std::cout << "Peer " << peer_id << ": Accepted connection" << std::endl;
-            Connection* raw_conn = conn.get();
             {
                 std::lock_guard lock(neighbors_mutex);
-                owned_connections.push_back(std::move(conn));
+                owned_connections.push_back(conn);
             }
-            connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn), false);
+            connection_threads.emplace_back(&Peer::handle_connection, this, conn, false);
         }
     }
 }
@@ -174,12 +173,11 @@ void Peer::connect_to_peers(const std::vector<PeerInfo>& peers) {
         auto conn = Client::connect_to_peer(p.hostname, p.port);
         if (conn) {
             std::cout << "Peer " << peer_id << ": Successfully connected to peer " << p.peer_id << std::endl;
-            Connection* raw_conn = conn.get();
             {
                 std::lock_guard lock(neighbors_mutex);
-                owned_connections.push_back(std::move(conn));
+                owned_connections.push_back(conn);
             }
-            connection_threads.emplace_back(&Peer::handle_connection, this, std::ref(*raw_conn), true);
+            connection_threads.emplace_back(&Peer::handle_connection, this, conn, true);
         } else {
             std::cerr << "Peer " << peer_id << ": Failed to connect to peer " << p.peer_id << std::endl;
         }

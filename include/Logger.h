@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CNT4007_PROJECT1_LOGGER_H
 #define CNT4007_PROJECT1_LOGGER_H
 

@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
               common_cfg.file_size, 
               common_cfg.piece_size);
 
-    std::thread server_thread(&Peer::start_server, &peer, my_info.port);
+    std::jthread server_thread(&Peer::start_server, &peer, my_info.port);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     // Give connections time to establish and exchange handshakes/bitfields
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    std::thread unchoke_thread([&peer, &common_cfg]() {
+    std::jthread unchoke_thread([&peer, &common_cfg]() {
         peer.select_preferred_neighbors();  // Initial selection
         while (true) {
             std::this_thread::sleep_for(std::chrono::seconds(common_cfg.unchoking_interval));
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
         }
     });
 
-    std::thread optimistic_thread([&peer, &common_cfg]() {
+    std::jthread optimistic_thread([&peer, &common_cfg]() {
         std::this_thread::sleep_for(std::chrono::seconds(common_cfg.optimistic_unchoking_interval));
         while (true) {
             peer.select_optimistic_unchoke();
@@ -76,9 +76,6 @@ int main(int argc, char* argv[]) {
         }
     });
 
-    server_thread.join();
-    unchoke_thread.join();
-    optimistic_thread.join();
 
     return 0;
 }

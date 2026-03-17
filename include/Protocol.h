@@ -1,7 +1,7 @@
 //
 // Created by yash2 on 2/21/2026.
 //
-
+#pragma once
 #ifndef CNT4007_PROJECT1_PROTOCOL_H
 #define CNT4007_PROJECT1_PROTOCOL_H
 #include <cassert>
