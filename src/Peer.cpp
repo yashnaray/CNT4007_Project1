@@ -47,8 +47,10 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
                 }
                 logger.log_unchoking(peer_id, conn->get_peer_id());
                 auto piece = select_piece_to_request(conn->get_peer_id());
-                std::cout << "Peer " << peer_id << ": After unchoke, selected piece " << piece << " to request from " << conn->get_peer_id() << std::endl;
-                if (piece != UINT32_MAX) {
+                if (piece == UINT32_MAX) {
+                    std::cout << "Peer " << peer_id << ": No pieces available to request from " << conn->get_peer_id() << std::endl;
+                } else {
+                    std::cout << "Peer " << peer_id << ": After unchoke, selected piece " << piece << " to request from " << conn->get_peer_id() << std::endl;
                     conn->send_message(create_request_message(piece));
                     std::cout << "Peer " << peer_id << ": Sent REQUEST for piece " << piece << std::endl;
                 }
