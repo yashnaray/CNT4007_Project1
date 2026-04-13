@@ -60,21 +60,39 @@ int main(int argc, char* argv[]) {
     // Give connections time to establish and exchange handshakes/bitfields
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    std::jthread unchoke_thread([&peer, &common_cfg]() {
+    std::jthread unchoke_thread([&peer, &common_cfg](std::stop_token st) {
         peer.select_preferred_neighbors();  // Initial selection
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(common_cfg.unchoking_interval));
-            peer.select_preferred_neighbors();
+        while (!st.stop_requested()) {
+            for (int i = 0; i < common_cfg.unchoking_interval && !st.stop_requested(); ++i){
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+            if (!st.stop_requested()){
+                peer.select_preferred_neighbors();
+            }
         }
     });
 
-    std::jthread optimistic_thread([&peer, &common_cfg]() {
-        std::this_thread::sleep_for(std::chrono::seconds(common_cfg.optimistic_unchoking_interval));
-        while (true) {
+    std::jthread optimistic_thread([&peer, &common_cfg](std::stop_token st) {
+        for (int i = 0; i < common_cfg.optimistic_unchoking_interval && !st.stop_requested(); ++i) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        while (!st.stop_requested()) {
             peer.select_optimistic_unchoke();
-            std::this_thread::sleep_for(std::chrono::seconds(common_cfg.optimistic_unchoking_interval));
+            for (int i = 0; i < common_cfg.optimistic_unchoking_interval && !st.stop_requested(); ++i) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
         }
     });
+
+    while (!peer.all_peers_complete()) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    std::cout << "All peers have the complete file. Shutting down." << std::endl;
+    peer.stop();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    exit(0);
 
 
     return 0;

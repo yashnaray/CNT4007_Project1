@@ -10,6 +10,9 @@ fi
 FILE_NAME=$(grep "FileName" Common.cfg | awk '{print $2}' | tr -d '\r')
 echo "Target file from config: $FILE_NAME"
 
+# Clean up old log files
+rm -f log_peer_*.log
+
 # Read PeerInfo.cfg line by line
 while read -r peer_id host port has_file; do
     # Skip empty lines
@@ -21,6 +24,9 @@ while read -r peer_id host port has_file; do
 
     DIR_NAME="peer_$peer_id"
     echo "Setting up $DIR_NAME..."
+    
+    # Remove old directory and recreate fresh
+    rm -rf "$DIR_NAME"
     mkdir -p "$DIR_NAME"
 
     # If the peer is marked as having the file, copy it into their directory

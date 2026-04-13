@@ -27,6 +27,7 @@ struct NeighborState {
     uint32_t peer_id;
     Bitfield bitfield;
     bool is_choked = true;
+    bool am_choked = true;
     bool is_interested = false;
     bool am_interested = false;
     size_t download_rate = 0;
@@ -46,7 +47,7 @@ class Peer {
     std::vector<std::shared_ptr<Connection>> owned_connections;
     std::set<uint32_t> preferred_neighbors;
     uint32_t optimistic_unchoke_neighbor = 0;
-    std::set<uint32_t> requested_pieces;
+    std::map<uint32_t, uint32_t> requested_pieces;
     std::mt19937 rng;
     std::vector<std::jthread> connection_threads;
     bool running = true;
@@ -114,7 +115,7 @@ public:
         std::ranges::transform(interested, std::back_inserter(rates), 
             [](const auto& p) { return std::pair{p.second.download_rate, p.first}; });
         
-        has_complete_file() ? std::ranges::shuffle(rates, rng) : std::ranges::sort(rates, std::greater{});
+        has_complete_file_unlocked() ? std::ranges::shuffle(rates, rng) : std::ranges::sort(rates, std::greater{});
         
         std::set<uint32_t> new_preferred;
         std::ranges::transform(rates | std::views::take(k_preferred), 
@@ -122,13 +123,12 @@ public:
             [](const auto& p) { return p.second; });
         
         for (auto id : new_preferred) {
-            if (!preferred_neighbors.contains(id)) {
-                neighbors[id].is_choked = false;
-                if (connections.contains(id)) {
-                    connections[id]->send_message(create_unchoke_message());
-                }
+            neighbors[id].is_choked = false;
+            if (connections.contains(id)) {
+                connections[id]->send_message(create_unchoke_message());
             }
         }
+
         
         for (auto id : preferred_neighbors) {
             if (!new_preferred.contains(id) && id != optimistic_unchoke_neighbor) {
@@ -189,7 +189,7 @@ public:
         if (vec.empty()) return UINT32_MAX;
         
         uint32_t piece = vec[std::uniform_int_distribution<size_t>(0, vec.size() - 1)(rng)];
-        requested_pieces.insert(piece);
+        requested_pieces[piece] = neighbor_id;
         return piece;
     }
     
@@ -210,19 +210,35 @@ public:
         
         Message have_msg = create_have_message(piece_index);
         for (auto& [neighbor_id, conn] : connections) {
-            if (neighbor_id != from_peer) {
-                conn->send_message(have_msg);
-            }
+            conn->send_message(have_msg);
         }
         
-        if (has_complete_file()) {
+        if (has_complete_file_unlocked()) {
             logger.log_completion(peer_id);
         }
     }
     
-    bool has_complete_file() const {
+    bool has_complete_file() {
+        std::lock_guard lock(neighbors_mutex);
+        return has_complete_file_unlocked();
+    }
+
+private:
+    bool has_complete_file_unlocked() const {
         return std::ranges::all_of(std::views::iota(0u, static_cast<unsigned>(num_pieces)), 
             [&](auto i) { return my_bitfield.has_piece(i); });
+    }
+
+public:
+    bool all_peers_complete() {
+        std::lock_guard lock(neighbors_mutex);
+        if (!has_complete_file_unlocked()) return false;
+        for (const auto& [id, state] : neighbors) {
+            for (unsigned i = 0; i < num_pieces; ++i) {
+                if (!state.bitfield.has_piece(i)) return false;
+            }
+        }
+        return !neighbors.empty();
     }
     
     const Bitfield& get_bitfield() const { return my_bitfield; }
@@ -231,7 +247,13 @@ public:
     uint32_t get_peer_id() const { return peer_id; }
     Logger& get_logger() { return logger; }
     FileManager& get_file_manager() { return file_manager; }
-    void stop() { running = false; }
+    void stop() { 
+        running = false; 
+        std::lock_guard lock(neighbors_mutex);
+        for (auto& [id, conn] : connections){
+            conn -> close();
+        }
+    }
 };
 
 #endif

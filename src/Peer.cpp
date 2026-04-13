@@ -30,32 +30,55 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
         
         switch (msg.message_type) {
             case CHOKE: {
-                std::lock_guard lock(neighbors_mutex);
-                if (auto it = neighbors.find(conn->get_peer_id()); it != neighbors.end()) {
-                    it->second.is_choked = true;
+                std::vector<std::pair<uint32_t, std::shared_ptr<Connection>>> to_notify;
+                {
+                    std::lock_guard lock(neighbors_mutex);
+                    if (auto it = neighbors.find(conn->get_peer_id()); it != neighbors.end()) {
+                        it->second.am_choked = true;
+                    }
+                    std::erase_if(requested_pieces, [&](const auto& entry) {
+                        return entry.second == conn->get_peer_id();
+                    });
+                    for (auto& [nid, nconn] : connections) {
+                        if (nid != conn->get_peer_id()) {
+                            to_notify.emplace_back(nid, nconn);
+                        }
+                    }
                 }
                 logger.log_choking(peer_id, conn->get_peer_id());
+                for (auto& [nid, nconn] : to_notify) {
+                    if (is_interested_in(nid)) {
+                        nconn->send_message(create_interested_message());
+                    }
+                }
                 break;
             }
+
+
                 
             case UNCHOKE: {
                 {
                     std::lock_guard lock(neighbors_mutex);
                     if (auto it = neighbors.find(conn->get_peer_id()); it != neighbors.end()) {
-                        it->second.is_choked = false;
+                        it->second.am_choked = false;
                     }
                 }
                 logger.log_unchoking(peer_id, conn->get_peer_id());
                 auto piece = select_piece_to_request(conn->get_peer_id());
-                if (piece == UINT32_MAX) {
-                    std::cout << "Peer " << peer_id << ": No pieces available to request from " << conn->get_peer_id() << std::endl;
-                } else {
-                    std::cout << "Peer " << peer_id << ": After unchoke, selected piece " << piece << " to request from " << conn->get_peer_id() << std::endl;
+                if (piece == UINT32_MAX && !has_complete_file()) {
+                    // Clear stale requests and retry
+                    {
+                        std::lock_guard lock(neighbors_mutex);
+                        requested_pieces.clear();
+                    }
+                    piece = select_piece_to_request(conn->get_peer_id());
+                }
+                if (piece != UINT32_MAX) {
                     conn->send_message(create_request_message(piece));
-                    std::cout << "Peer " << peer_id << ": Sent REQUEST for piece " << piece << std::endl;
                 }
                 break;
             }
+
                 
             case INTERESTED: {
                 std::lock_guard lock(neighbors_mutex);
@@ -99,9 +122,12 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
                 if (is_interested_in(conn->get_peer_id())) {
                     conn->send_message(create_interested_message());
                     std::cout << "Peer " << peer_id << ": Sent INTERESTED to " << conn->get_peer_id() << std::endl;
+                } else {
+                    conn->send_message(create_not_interested_message());
                 }
                 break;
             }
+
                 
             case REQUEST: {
                 uint32_t piece_idx;
@@ -157,15 +183,18 @@ void Peer::start_server(uint16_t port) {
     
     while (running) {
         auto conn = server.accept_connection();
-        if (conn) {
-            std::cout << "Peer " << peer_id << ": Accepted connection" << std::endl;
-            {
-                std::lock_guard lock(neighbors_mutex);
-                owned_connections.push_back(conn);
-            }
-            connection_threads.emplace_back(&Peer::handle_connection, this, conn, false);
+        if (!conn) {
+            if (!running) break;
+            continue;
         }
+        std::cout << "Peer " << peer_id << ": Accepted connection" << std::endl;
+        {
+            std::lock_guard lock(neighbors_mutex);
+            owned_connections.push_back(conn);
+        }
+        connection_threads.emplace_back(&Peer::handle_connection, this, conn, false);
     }
+    server.close();
 }
 
 void Peer::connect_to_peers(const std::vector<PeerInfo>& peers) {
