@@ -145,7 +145,12 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
                 
                 if (should_send) {
                     std::vector<uint8_t> piece_data;
-                    if (file_manager.read_piece(piece_idx, piece_data)) {
+                    bool read_ok;
+                    {
+                        std::lock_guard file_lock(file_mutex);
+                        read_ok = file_manager.read_piece(piece_idx, piece_data);
+                    }
+                    if (read_ok) {
                         conn->send_message(create_piece_message(piece_idx, piece_data));
                     }
                 }
@@ -157,8 +162,10 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
                 std::memcpy(&piece_idx, msg.payload.data(), 4);
                 piece_idx = ntohl(piece_idx);
                 std::vector<uint8_t> content(msg.payload.begin() + 4, msg.payload.end());
-                
-                file_manager.write_piece(piece_idx, content);
+                {
+                    std::lock_guard file_lock(file_mutex);
+                    file_manager.write_piece(piece_idx, content);
+                }
                 mark_piece_received(piece_idx, conn->get_peer_id(), content.size());
                 
                 if (!has_complete_file()) {

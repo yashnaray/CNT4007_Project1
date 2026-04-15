@@ -54,6 +54,7 @@ class Peer {
     Logger logger;
     FileManager file_manager;
     std::mutex neighbors_mutex;
+    std::mutex file_mutex;
 
     void handle_connection(std::shared_ptr<Connection> conn, bool is_client);
     
