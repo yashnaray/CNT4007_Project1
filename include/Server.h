@@ -4,6 +4,7 @@
 
 #include "Connection.h"
 #include <memory>
+#include <stop_token>
 
 class Server {
     int listen_fd = -1;
@@ -14,7 +15,7 @@ public:
     ~Server() { close(); }
     
     bool bind_and_listen(uint16_t port, int backlog = 10);
-    std::shared_ptr<Connection> accept_connection();
+    std::shared_ptr<Connection> accept_connection(std::stop_token st = {});
     void close();
     bool is_listening() const { return is_running; }
 };

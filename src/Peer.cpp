@@ -3,8 +3,9 @@
 #include <iostream>
 #include <memory>
 #include <cstring>
+#include <stop_token>
 
-void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
+void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client, std::stop_token st) {
     Handshake my_hs;
     my_hs.peer_ID = peer_id;
     if (!conn->send_handshake(my_hs)) return;
@@ -24,7 +25,7 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
     
     conn->send_message(create_bitfield_message(my_bitfield));
     
-    while (running) {
+    while (!st.stop_requested()) {
         Message msg;
         if (!conn->recv_message(msg)) break;
         
@@ -53,8 +54,6 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
                 }
                 break;
             }
-
-
                 
             case UNCHOKE: {
                 {
@@ -66,7 +65,6 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
                 logger.log_unchoking(peer_id, conn->get_peer_id());
                 auto piece = select_piece_to_request(conn->get_peer_id());
                 if (piece == UINT32_MAX && !has_complete_file()) {
-                    // Clear stale requests and retry
                     {
                         std::lock_guard lock(neighbors_mutex);
                         requested_pieces.clear();
@@ -173,7 +171,7 @@ void Peer::handle_connection(std::shared_ptr<Connection> conn, bool is_client) {
     }
 }
 
-void Peer::start_server(uint16_t port) {
+void Peer::start_server(uint16_t port, std::stop_token st) {
     Server server;
     if (!server.bind_and_listen(port)) {
         std::cerr << "Peer " << peer_id << ": Failed to bind to port " << port << std::endl;
@@ -181,10 +179,10 @@ void Peer::start_server(uint16_t port) {
     }
     std::cout << "Peer " << peer_id << ": Server listening on port " << port << std::endl;
     
-    while (running) {
-        auto conn = server.accept_connection();
+    while (!st.stop_requested()) {
+        auto conn = server.accept_connection(st);
         if (!conn) {
-            if (!running) break;
+            if (st.stop_requested()) break;
             continue;
         }
         std::cout << "Peer " << peer_id << ": Accepted connection" << std::endl;
@@ -192,7 +190,9 @@ void Peer::start_server(uint16_t port) {
             std::lock_guard lock(neighbors_mutex);
             owned_connections.push_back(conn);
         }
-        connection_threads.emplace_back(&Peer::handle_connection, this, conn, false);
+        connection_threads.emplace_back([this, conn, &st]() {
+            handle_connection(conn, false, st);
+        });
     }
     server.close();
 }
@@ -208,7 +208,10 @@ void Peer::connect_to_peers(const std::vector<PeerInfo>& peers) {
                 std::lock_guard lock(neighbors_mutex);
                 owned_connections.push_back(conn);
             }
-            connection_threads.emplace_back(&Peer::handle_connection, this, conn, true);
+            connection_threads.emplace_back([this, conn]() {
+            std::stop_token st;
+            handle_connection(conn, true, st);
+        });
         } else {
             std::cerr << "Peer " << peer_id << ": Failed to connect to peer " << p.peer_id << std::endl;
         }

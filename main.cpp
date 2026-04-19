@@ -51,17 +51,18 @@ int main(int argc, char* argv[]) {
               common_cfg.file_size, 
               common_cfg.piece_size);
 
-    std::jthread server_thread(&Peer::start_server, &peer, my_info.port);
+    std::jthread server_thread([&peer, &my_info](std::stop_token st) {
+        peer.start_server(my_info.port, std::move(st));
+    });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     peer.connect_to_peers(previous_peers);
 
-    // Give connections time to establish and exchange handshakes/bitfields
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     std::jthread unchoke_thread([&peer, &common_cfg](std::stop_token st) {
-        peer.select_preferred_neighbors();  // Initial selection
+        peer.select_preferred_neighbors(); 
         while (!st.stop_requested()) {
             for (int i = 0; i < common_cfg.unchoking_interval && !st.stop_requested(); ++i){
                 std::this_thread::sleep_for(std::chrono::seconds(1));

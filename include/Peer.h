@@ -49,16 +49,17 @@ class Peer {
     uint32_t optimistic_unchoke_neighbor = 0;
     std::map<uint32_t, uint32_t> requested_pieces;
     std::mt19937 rng;
+    std::jthread server_thread;
     std::vector<std::jthread> connection_threads;
     bool running = true;
     Logger logger;
     FileManager file_manager;
     std::mutex neighbors_mutex;
 
-    void handle_connection(std::shared_ptr<Connection> conn, bool is_client);
+    void handle_connection(std::shared_ptr<Connection> conn, bool is_client, std::stop_token st = {});
     
 public:
-    void start_server(uint16_t port);
+    void start_server(uint16_t port, std::stop_token st = {});
     void connect_to_peers(const std::vector<PeerInfo>& peers);
     Peer(uint32_t id, size_t num_pieces, size_t k_pref, bool has_complete_file,
          const std::string& filename, size_t file_size, size_t piece_size)
@@ -249,10 +250,6 @@ public:
     FileManager& get_file_manager() { return file_manager; }
     void stop() { 
         running = false; 
-        std::lock_guard lock(neighbors_mutex);
-        for (auto& [id, conn] : connections){
-            conn -> close();
-        }
     }
 };
 
