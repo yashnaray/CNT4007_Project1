@@ -55,6 +55,7 @@ class Peer {
     Logger logger;
     FileManager file_manager;
     std::mutex neighbors_mutex;
+    std::mutex file_mutex;
 
     void handle_connection(std::shared_ptr<Connection> conn, bool is_client, std::stop_token st = {});
     
@@ -107,6 +108,34 @@ public:
         return std::ranges::any_of(std::views::iota(0u, static_cast<unsigned>(num_pieces)), [&](auto i) {
             return it->second.bitfield.has_piece(i) && !my_bitfield.has_piece(i);
         });
+    }
+
+    bool send_interest_update(uint32_t neighbor_id, std::shared_ptr<Connection> conn) {
+        bool should_be_interested;
+        bool state_changed = false;
+        {
+            std::lock_guard lock(neighbors_mutex);
+            auto it = neighbors.find(neighbor_id);
+            if (it == neighbors.end()) return false;
+            
+            should_be_interested = std::ranges::any_of(
+                std::views::iota(0u, static_cast<unsigned>(num_pieces)),
+                [&](auto i) {
+                    return it->second.bitfield.has_piece(i) && !my_bitfield.has_piece(i);
+                });
+            
+            if (should_be_interested != it->second.am_interested) {
+                it->second.am_interested = should_be_interested;
+                state_changed = true;
+            }
+        }
+        
+        if (state_changed) {
+            conn->send_message(should_be_interested 
+                ? create_interested_message() 
+                : create_not_interested_message());
+        }
+        return state_changed;
     }
     
     void select_preferred_neighbors() {
