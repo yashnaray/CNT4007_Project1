@@ -109,5 +109,18 @@ int main(int argc, char* argv[]) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
+    if (g_server_thread && g_server_thread->joinable()) {
+        g_server_thread->request_stop();
+        g_server_thread->join();
+    }
+    if (g_unchoke_thread && g_unchoke_thread->joinable()) {
+        g_unchoke_thread->request_stop();
+        g_unchoke_thread->join();
+    }
+    if (g_optimistic_thread && g_optimistic_thread->joinable()) {
+        g_optimistic_thread->request_stop();
+        g_optimistic_thread->join();
+    }
+
     return 0;
 }
