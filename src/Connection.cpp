@@ -23,8 +23,12 @@ bool Connection::send_bytes(const void* data, size_t len) {
 }
 
 bool Connection::recv_bytes(void* buffer, size_t len) {
+    if (socket_fd < 0) return false;
+    
     size_t received = 0;
     while (received < len) {
+        if (socket_fd < 0) return false;
+        
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(socket_fd, &read_fds);
