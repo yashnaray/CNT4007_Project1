@@ -33,6 +33,7 @@ bool Connection::recv_bytes(void* buffer, size_t len) {
 }
 
 bool Connection::send_handshake(const Handshake& hs) {
+    std::lock_guard<std::mutex> lock(send_mutex);
     uint8_t buffer[32];
     std::memcpy(buffer, hs.message, 18);
     std::memcpy(buffer + 18, hs.zero_bits, 10);
@@ -53,6 +54,7 @@ bool Connection::recv_handshake(Handshake& hs) {
 }
 
 bool Connection::send_message(const Message& msg) {
+    std::lock_guard<std::mutex> lock(send_mutex);
     uint32_t len_net = htonl(msg.message_len);
     if (!send_bytes(&len_net, 4)) return false;
     if (!send_bytes(&msg.message_type, 1)) return false;

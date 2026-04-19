@@ -27,6 +27,7 @@
 class Connection {
     int socket_fd;
     uint32_t peer_id = 0;
+    std::mutex send_mutex;
     
 public:
     explicit Connection(int fd) : socket_fd(fd) {}
