@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -O2 -Iinclude 
-LDFLAGS = -pthread
+LDFLAGS = -lws2_32 -lpthread
 TARGET = peerProcess
 SRCS = main.cpp $(wildcard src/*.cpp)
 OBJS = $(patsubst %.cpp,%.o,$(SRCS))

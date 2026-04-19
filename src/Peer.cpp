@@ -211,8 +211,9 @@ void Peer::start_server(uint16_t port, std::stop_token st) {
             std::lock_guard lock(neighbors_mutex);
             owned_connections.push_back(conn);
         }
-        connection_threads.emplace_back([this, conn, &st]() {
-            handle_connection(conn, false, st);
+        auto st_copy = std::make_shared<std::stop_token>(st);
+        connection_threads.emplace_back([this, conn, st_copy]() {
+            handle_connection(conn, false, *st_copy);
         });
     }
     server.close();
