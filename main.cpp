@@ -3,9 +3,21 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <csignal>
+#include <memory>
 #include "include/Protocol.h"
 #include "include/Peer.h"
 #include "include/Config_reader.h"
+
+std::unique_ptr<std::jthread> g_server_thread;
+std::unique_ptr<std::jthread> g_unchoke_thread;
+std::unique_ptr<std::jthread> g_optimistic_thread;
+
+void signal_handler(int sig) {
+    if (g_server_thread) g_server_thread->request_stop();
+    if (g_unchoke_thread) g_unchoke_thread->request_stop();
+    if (g_optimistic_thread) g_optimistic_thread->request_stop();
+}
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -51,7 +63,7 @@ int main(int argc, char* argv[]) {
               common_cfg.file_size, 
               common_cfg.piece_size);
 
-    std::jthread server_thread([&peer, &my_info](std::stop_token st) {
+    g_server_thread = std::make_unique<std::jthread>([&peer, &my_info](std::stop_token st) {
         peer.start_server(my_info.port, std::move(st));
     });
 
@@ -61,19 +73,19 @@ int main(int argc, char* argv[]) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    std::jthread unchoke_thread([&peer, &common_cfg](std::stop_token st) {
-        peer.select_preferred_neighbors(); 
+    g_unchoke_thread = std::make_unique<std::jthread>([&peer, &common_cfg](std::stop_token st) {
+        peer.select_preferred_neighbors();
         while (!st.stop_requested()) {
-            for (int i = 0; i < common_cfg.unchoking_interval && !st.stop_requested(); ++i){
+            for (int i = 0; i < common_cfg.unchoking_interval && !st.stop_requested(); ++i) {
                 std::this_thread::sleep_for(std::chrono::seconds(1));
             }
-            if (!st.stop_requested()){
+            if (!st.stop_requested()) {
                 peer.select_preferred_neighbors();
             }
         }
     });
 
-    std::jthread optimistic_thread([&peer, &common_cfg](std::stop_token st) {
+    g_optimistic_thread = std::make_unique<std::jthread>([&peer, &common_cfg](std::stop_token st) {
         for (int i = 0; i < common_cfg.optimistic_unchoking_interval && !st.stop_requested(); ++i) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
@@ -85,6 +97,9 @@ int main(int argc, char* argv[]) {
         }
     });
 
+    std::signal(SIGINT, signal_handler);
+    std::signal(SIGTERM, signal_handler);
+
     while (!peer.all_peers_complete()) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -93,8 +108,6 @@ int main(int argc, char* argv[]) {
     peer.stop();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    exit(0);
-
 
     return 0;
 }
