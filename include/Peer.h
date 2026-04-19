@@ -279,6 +279,13 @@ public:
     FileManager& get_file_manager() { return file_manager; }
     void stop() { 
         running = false; 
+        std::lock_guard lock(neighbors_mutex);
+        for (auto& [id, conn] : connections) {
+            conn->close();
+        }
+        for (auto& conn : owned_connections) {
+            conn->close();
+        }
     }
 };
 
