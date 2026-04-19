@@ -14,6 +14,7 @@ std::unique_ptr<std::jthread> g_unchoke_thread;
 std::unique_ptr<std::jthread> g_optimistic_thread;
 
 void signal_handler(int sig) {
+    (void) sig;
     if (g_server_thread) g_server_thread->request_stop();
     if (g_unchoke_thread) g_unchoke_thread->request_stop();
     if (g_optimistic_thread) g_optimistic_thread->request_stop();
@@ -107,20 +108,19 @@ int main(int argc, char* argv[]) {
     std::cout << "All peers have the complete file. Shutting down." << std::endl;
     peer.stop();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    if (g_server_thread && g_server_thread->joinable()) {
+    if (g_server_thread) {
         g_server_thread->request_stop();
-        g_server_thread->join();
     }
-    if (g_unchoke_thread && g_unchoke_thread->joinable()) {
+    if (g_unchoke_thread) {
         g_unchoke_thread->request_stop();
-        g_unchoke_thread->join();
     }
-    if (g_optimistic_thread && g_optimistic_thread->joinable()) {
+    if (g_optimistic_thread) {
         g_optimistic_thread->request_stop();
-        g_optimistic_thread->join();
     }
+
+    g_server_thread.reset();
+    g_unchoke_thread.reset();
+    g_optimistic_thread.reset();
 
     return 0;
 }
