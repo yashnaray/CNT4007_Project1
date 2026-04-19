@@ -25,6 +25,20 @@ bool Connection::send_bytes(const void* data, size_t len) {
 bool Connection::recv_bytes(void* buffer, size_t len) {
     size_t received = 0;
     while (received < len) {
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(socket_fd, &read_fds);
+        
+        timeval timeout{};
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+        
+        int ready = select(socket_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+        if (ready < 0) return false;
+        if (ready == 0) {
+            continue;
+        }
+        
         auto result = ::recv(socket_fd, static_cast<char*>(buffer) + received, len - received, 0);
         if (result <= 0) return false;
         received += result;
