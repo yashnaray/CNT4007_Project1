@@ -14,7 +14,7 @@ echo "Target file from config: $FILE_NAME"
 rm -f log_peer_*.log
 
 # Read PeerInfo.cfg line by line
-while read -r peer_id host port has_file; do
+while read -r peer_id host port has_file || [[ -n "$peer_id" ]]; do
     # Skip empty lines
     if [[ -z "$peer_id" ]]; then continue; fi
     
