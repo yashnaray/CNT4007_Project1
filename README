@@ -1,0 +1,50 @@
+CNT4007 Project 1 - P2P File Sharing
+
+Group Members:
+Yash Narayan
+Garrett Elebash
+
+Build:
+From the project root directory, run:
+
+    make
+
+This produces an executable named "peerProcess".
+
+
+Setup:
+Before running, make sure the following files are present in the
+project root directory (same directory as main.cpp):
+
+  - Common.cfg       (configuration file provided by the TA)
+  - PeerInfo.cfg     (peer list provided by the TA)
+  - <data file>      (the file to be distributed, name matches the
+                      FileName field in Common.cfg)
+
+Then run the setup script:
+
+    bash setup_peers.sh
+
+This reads PeerInfo.cfg, creates a subdirectory "peer_<id>" for each
+peer listed, and copies the data file into the directory of every peer
+whose "has file" flag is set to 1.
+
+
+Running:
+Start each peer in a separate terminal, in the order they appear in
+PeerInfo.cfg:
+
+    ./peerProcess 1001
+    ./peerProcess 1002
+    ./peerProcess 1003
+    ./peerProcess 1004
+    ./peerProcess 1005
+    ./peerProcess 1006
+
+Each peer prints status to stdout and writes its detailed event log to
+log_peer_<id>.log in the project root. The peers terminate on their own
+once every peer has received the complete file.
+
+
+Notes:
+- Tested on Linux (Ubuntu via WSL && Reptilian via VirtualBox). Built with g++ targeting C++20.
